@@ -1,0 +1,53 @@
+import networkx as nx
+import pandas as pd
+import math
+import csv
+import matplotlib.pyplot as plt
+
+minneapolis = nx.DiGraph()
+with open('map.csv') as file_obj:
+    reader = csv.reader(file_obj)
+    for row in reader:
+
+        street_type, x1, y1, x2, y2 = row
+        street_type = int(street_type)
+        start = [int(x1), int(y1)]
+        end = [int(x2), int(y2)]
+        weight = math.dist(start,end)
+        start = tuple(start)
+        end = tuple(end)
+        if street_type == 2:
+            if minneapolis.has_node(start) and minneapolis.has_node(end):
+                minneapolis.add_edge(start, end, weight=weight)
+                minneapolis.add_edge(end, start, weight=weight)
+            elif minneapolis.has_node(start):
+                minneapolis.add_node(end)
+                minneapolis.add_edge(start, end, weight=weight)
+                minneapolis.add_edge(end, start, weight=weight)
+            elif minneapolis.has_node(end):
+                minneapolis.add_node(start)
+                minneapolis.add_edge(start, end, weight=weight)
+            else:
+                minneapolis.add_node(start)
+                minneapolis.add_node(end)
+                minneapolis.add_edge(start, end, weight=weight)
+                minneapolis.add_edge(end, start, weight=weight)
+        else:
+            if minneapolis.has_node(start) and minneapolis.has_node(end):
+                minneapolis.add_edge(start, end, weight=weight)
+            elif minneapolis.has_node(start):
+                minneapolis.add_node(end)
+                minneapolis.add_edge(start, end, weight=weight)
+            elif minneapolis.has_node(end):
+                minneapolis.add_node(start)
+                minneapolis.add_edge(start, end, weight=weight)
+            else:
+                minneapolis.add_node(start)
+                minneapolis.add_node(end)
+                minneapolis.add_edge(start, end, weight=weight)
+    
+pos = {node: node for node in minneapolis.nodes()}
+nx.draw(minneapolis, pos=pos, node_size=10, with_labels=False)
+plt.show()
+
+
