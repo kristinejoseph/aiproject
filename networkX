@@ -3,51 +3,238 @@ import pandas as pd
 import math
 import csv
 import matplotlib.pyplot as plt
+import random
+from time import perf_counter
 
-minneapolis = nx.DiGraph()
-with open('map.csv') as file_obj:
-    reader = csv.reader(file_obj)
-    for row in reader:
+startNode = (1121,7568)
+numRandDests = 10
+runTests = True
 
-        street_type, x1, y1, x2, y2 = row
-        street_type = int(street_type)
-        start = [int(x1), int(y1)]
-        end = [int(x2), int(y2)]
-        weight = math.dist(start,end)
-        start = tuple(start)
-        end = tuple(end)
-        if street_type == 2:
-            if minneapolis.has_node(start) and minneapolis.has_node(end):
-                minneapolis.add_edge(start, end, weight=weight)
-                minneapolis.add_edge(end, start, weight=weight)
-            elif minneapolis.has_node(start):
-                minneapolis.add_node(end)
-                minneapolis.add_edge(start, end, weight=weight)
-                minneapolis.add_edge(end, start, weight=weight)
-            elif minneapolis.has_node(end):
-                minneapolis.add_node(start)
-                minneapolis.add_edge(start, end, weight=weight)
+def createGraph():
+    graph = nx.DiGraph()
+    with open('map.csv') as file_obj:
+        reader = csv.reader(file_obj)
+        for row in reader:
+            street_type, x1, y1, x2, y2 = row
+            street_type = int(street_type)
+            start = [int(x1), int(y1)]
+            end = [int(x2), int(y2)]
+            weight = math.dist(start,end)
+            start = tuple(start)
+            end = tuple(end)
+            if street_type == 2:
+                if graph.has_node(start) and graph.has_node(end):
+                    graph.add_edge(start, end, weight=weight)
+                    graph.add_edge(end, start, weight=weight)
+                elif graph.has_node(start):
+                    graph.add_node(end)
+                    graph.add_edge(start, end, weight=weight)
+                    graph.add_edge(end, start, weight=weight)
+                elif graph.has_node(end):
+                    graph.add_node(start)
+                    graph.add_edge(start, end, weight=weight)
+                else:
+                    graph.add_node(start)
+                    graph.add_node(end)
+                    graph.add_edge(start, end, weight=weight)
+                    graph.add_edge(end, start, weight=weight)
             else:
-                minneapolis.add_node(start)
-                minneapolis.add_node(end)
-                minneapolis.add_edge(start, end, weight=weight)
-                minneapolis.add_edge(end, start, weight=weight)
-        else:
-            if minneapolis.has_node(start) and minneapolis.has_node(end):
-                minneapolis.add_edge(start, end, weight=weight)
-            elif minneapolis.has_node(start):
-                minneapolis.add_node(end)
-                minneapolis.add_edge(start, end, weight=weight)
-            elif minneapolis.has_node(end):
-                minneapolis.add_node(start)
-                minneapolis.add_edge(start, end, weight=weight)
-            else:
-                minneapolis.add_node(start)
-                minneapolis.add_node(end)
-                minneapolis.add_edge(start, end, weight=weight)
+                if graph.has_node(start) and graph.has_node(end):
+                    graph.add_edge(start, end, weight=weight)
+                elif graph.has_node(start):
+                    graph.add_node(end)
+                    graph.add_edge(start, end, weight=weight)
+                elif graph.has_node(end):
+                    graph.add_node(start)
+                    graph.add_edge(start, end, weight=weight)
+                else:
+                    graph.add_node(start)
+                    graph.add_node(end)
+                    graph.add_edge(start, end, weight=weight)
+    return graph
+
+def euclidean_h(source, dest):
+    (x1, y1) = source
+    (x2, y2) = dest
+    return ((x1 - x2) ** 2 + (y1 - y2) ** 2) ** 0.5
+
+
+def manhattan_h(source, dest):
+    (x1, y1) = source
+    (x2, y2) = dest
+    return abs(x2 - x1) + abs(y2 - y1)
+
+def get_random_dests(graph):
+    # Get a random sample (without replacement) of the node labels/indexes:
+    sample = []
+    while(len(sample) < numRandDests):
+        currDest = random.choice(list(graph.nodes()))
+        if(nx.has_path(graph,startNode,currDest) and (currDest not in sample)):
+            sample.append(currDest)
     
-pos = {node: node for node in minneapolis.nodes()}
-nx.draw(minneapolis, pos=pos, node_size=10, with_labels=False)
-plt.show()
+    print(sample)
+    return sample
 
 
+def displayGraph(graph):
+    pos = {node: node for node in graph.nodes()}
+    nx.draw(graph, pos=pos, node_size=10, with_labels=False)
+    plt.show()
+
+def determine_turn_direction(a, b, c):
+    ab = (b[0] - a[0], b[1] - a[1])
+    bc = (c[0] - b[0], c[1] - b[1])
+   
+    cross = ab[0]*bc[1] - ab[1]*bc[0]
+    
+    if cross > 0:
+        return 'left'
+    elif cross < 0:
+        return 'right'
+    else:
+        return 'straight'
+
+def integrate_left_turns(graph):
+    left_turn_penalty = 40
+    for a in graph.nodes():
+        for b in graph.successors(a):
+            for c in graph.successors(b):
+                turn_type = determine_turn_direction(a, b, c)
+                if turn_type == 'left':
+                    graph[b][c]['weight'] += left_turn_penalty #might be graph[b][c]['weight] +=left_turn_penalty
+                    
+def integrate_right_turns(graph):
+    right_turn_advantage = 20
+    for a in graph.nodes():
+        for b in graph.successors(a):
+            for c in graph.successors(b):
+                turn_type = determine_turn_direction(a, b, c)
+                if turn_type == 'right':
+                    temp = graph[b][c]['weight'] - right_turn_advantage
+                    if(temp < 0):
+                        graph[b][c]['weight'] = 0
+                    else:
+                        graph[b][c]['weight'] = temp #might be graph[b][c]['weight] +=left_turn_penalty  
+
+def average_road_dist(graph):
+    average = 0
+    for node in graph.nodes():
+        for node2 in graph.successors(node):
+            average += graph[node][node2]['weight']
+    print("Average is: " , average/graph.number_of_nodes())
+
+def path_cost_bfs(path):
+    index = 0
+    total = 0
+    while(index < len(path)-1):
+        total += math.dist(path[index],path[index+1])
+        index += 1
+    return total 
+                    
+def astar_right_advantage(graph, startNode, dest):
+    right_graph = graph.copy()
+    integrate_right_turns(right_graph)
+    
+    result = nx.astar_path_length(right_graph, startNode, dest, euclidean_h, "weight")
+    steps = len(nx.astar_path(right_graph, startNode, dest, euclidean_h, "weight"))
+    return result, steps
+    
+def astar_left_penalty(graph, startNode, dest):
+    left_graph = graph.copy()
+    integrate_left_turns(left_graph)
+    
+    result = nx.astar_path_length(left_graph, startNode, dest, euclidean_h, "weight")
+    steps = len(nx.astar_path(left_graph, startNode, dest, euclidean_h, "weight"))
+    return result, steps
+
+def main():
+    minneapolis = createGraph()
+    print(minneapolis)
+    print("Destinations:")
+   
+    randomDests = get_random_dests(minneapolis)
+
+    dest = (1639, 7706)
+
+    average_road_dist(minneapolis)
+
+    # print("Sanity Check")
+    # print("A* Path Cost (Euclidean): " ,nx.astar_path_length(minneapolis, startNode, dest, euclidean_h, "weight")) 
+    # print("A* Path #Nodes (Euclidean): " ,len(nx.astar_path(minneapolis, startNode, dest, euclidean_h, "weight")))
+    # print("A* Path Cost (Manhattan): " ,nx.astar_path_length(minneapolis, startNode, dest, manhattan_h, "weight"))
+    # print("A* Path #Nodes (Manhattan): " ,len(nx.astar_path(minneapolis, startNode, dest, manhattan_h, "weight")))
+    # print("Dijkstra Path Cost: " ,nx.dijkstra_path_length(minneapolis, startNode, dest, "weight"))
+    # print("Dijkstra Path Cost: " , len(nx.dijkstra_path(minneapolis, startNode, dest, "weight")))
+    # print("Breadth First Search Path Cost: " ,nx.shortest_path_length(minneapolis, startNode, dest))
+
+    ##
+    #  
+    '''
+    A* Path Cost (Euclidean):  998.8069511966381
+    A* Path #Nodes (Euclidean):  20
+    A* Path Cost (Manhattan):  998.8069511966381
+    A* Path #Nodes (Manhattan):  20
+    Dijkstra Path Cost:  998.8069511966381
+    Dijkstra Path Cost:  20
+    Breadth First Search Path Cost:  17
+    '''
+    
+    # Computes 10 trials of the search algorithms in the Minneapolis map
+    trialNum = 1
+    if(runTests):
+        for dest in randomDests:
+            print(f"Trial: {trialNum}")
+            # A* with Euclidean Distance
+            start_time = perf_counter()
+            path_length = nx.astar_path_length(minneapolis, startNode, dest, euclidean_h, "weight")
+            stop_time = perf_counter()
+            print("A* Path Cost (Euclidean): " , path_length, "weight")
+            print("A* Path #Nodes (Euclidean): " ,len(nx.astar_path(minneapolis, startNode, dest, euclidean_h, "weight"))) 
+            print("time:", stop_time-start_time)
+
+            # A* with Manhattan Distance
+            start_time = perf_counter()
+            path_length = nx.astar_path_length(minneapolis, startNode, dest, manhattan_h, "weight")
+            stop_time = perf_counter() 
+            print("A* Path Cost (Manhattan): " ,path_length)
+            print("A* Path #Nodes (Manhattan): " ,len(nx.astar_path(minneapolis, startNode, dest, manhattan_h, "weight")))
+            print("time:", stop_time-start_time)
+
+            # Dijkstra
+            start_time = perf_counter()
+            path_length = nx.dijkstra_path_length(minneapolis, startNode, dest, "weight")
+            stop_time = perf_counter() 
+            print("Dijkstra Path Cost: ", path_length)
+            print("Dijkstra Path #Nodes: " , len(nx.dijkstra_path(minneapolis, startNode, dest, "weight")))
+            print("time:", stop_time-start_time)
+
+            # Breadth First Search
+            start_time = perf_counter()
+            path_length = nx.shortest_path_length(minneapolis, startNode, dest)
+            stop_time = perf_counter()
+            print("Breadth First Search Path Cost:", path_cost_bfs(nx.shortest_path(minneapolis,startNode,dest)))
+            print("Breadth First Search Path #Nodes: " , path_length)
+            print("time:", stop_time-start_time)
+
+            # A* Right Advantage
+            start_time = perf_counter()
+            path_length = astar_right_advantage(minneapolis,startNode,dest)[0]
+            stop_time = perf_counter()
+            print("A* Right Advantage cost", path_length)
+            print("A* Right Advantage #nodes", astar_right_advantage(minneapolis,startNode,dest)[1])
+            print("time:", stop_time-start_time)
+
+            # A* Left Disdvantage
+            start_time = perf_counter()
+            path_length = astar_left_penalty(minneapolis,startNode,dest)[0]
+            stop_time = perf_counter()
+            print("A* Left Disadvantage cost",  path_length)
+            print("A* Left Disadvantage #nodes", astar_left_penalty(minneapolis,startNode,dest)[1])
+            print("time:", stop_time-start_time)
+            print()
+            
+            trialNum +=1
+
+    
+if __name__ == "__main__":
+    main()
