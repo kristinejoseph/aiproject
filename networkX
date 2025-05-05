@@ -65,7 +65,6 @@ def manhattan_h(source, dest):
     return abs(x2 - x1) + abs(y2 - y1)
 
 def get_random_dests(graph):
-    # Get a random sample (without replacement) of the node labels/indexes:
     sample = []
     while(len(sample) < numRandDests):
         currDest = random.choice(list(graph.nodes()))
@@ -101,7 +100,7 @@ def integrate_left_turns(graph):
             for c in graph.successors(b):
                 turn_type = determine_turn_direction(a, b, c)
                 if turn_type == 'left':
-                    graph[b][c]['weight'] += left_turn_penalty #might be graph[b][c]['weight] +=left_turn_penalty
+                    graph[b][c]['weight'] += left_turn_penalty
                     
 def integrate_right_turns(graph):
     right_turn_advantage = 20
@@ -114,7 +113,7 @@ def integrate_right_turns(graph):
                     if(temp < 0):
                         graph[b][c]['weight'] = 0
                     else:
-                        graph[b][c]['weight'] = temp #might be graph[b][c]['weight] +=left_turn_penalty  
+                        graph[b][c]['weight'] = temp
 
 def average_road_dist(graph):
     average = 0
@@ -157,28 +156,6 @@ def main():
     dest = (1639, 7706)
 
     average_road_dist(minneapolis)
-
-    # print("Sanity Check")
-    # print("A* Path Cost (Euclidean): " ,nx.astar_path_length(minneapolis, startNode, dest, euclidean_h, "weight")) 
-    # print("A* Path #Nodes (Euclidean): " ,len(nx.astar_path(minneapolis, startNode, dest, euclidean_h, "weight")))
-    # print("A* Path Cost (Manhattan): " ,nx.astar_path_length(minneapolis, startNode, dest, manhattan_h, "weight"))
-    # print("A* Path #Nodes (Manhattan): " ,len(nx.astar_path(minneapolis, startNode, dest, manhattan_h, "weight")))
-    # print("Dijkstra Path Cost: " ,nx.dijkstra_path_length(minneapolis, startNode, dest, "weight"))
-    # print("Dijkstra Path Cost: " , len(nx.dijkstra_path(minneapolis, startNode, dest, "weight")))
-    # print("Breadth First Search Path Cost: " ,nx.shortest_path_length(minneapolis, startNode, dest))
-
-    ##
-    #  
-    '''
-    A* Path Cost (Euclidean):  998.8069511966381
-    A* Path #Nodes (Euclidean):  20
-    A* Path Cost (Manhattan):  998.8069511966381
-    A* Path #Nodes (Manhattan):  20
-    Dijkstra Path Cost:  998.8069511966381
-    Dijkstra Path Cost:  20
-    Breadth First Search Path Cost:  17
-    '''
-    
     # Computes 10 trials of the search algorithms in the Minneapolis map
     trialNum = 1
     if(runTests):
